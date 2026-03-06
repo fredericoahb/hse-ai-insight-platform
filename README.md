@@ -39,7 +39,7 @@ The pipeline currently:
 
 The README uses a **static high-resolution preview** because GitHub renders PNG images much more sharply than large animated GIFs. This keeps the product walkthrough clear, readable, and professional.
 
-![HSE-AI Insight Platform Overview](docs/demo/hse-ai-insight-platform-overview.png)
+![HSE-AI Insight Platform Overview](docs/demo/hse-demo-overview.png)
 
 What the walkthrough shows:
 
