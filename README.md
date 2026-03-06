@@ -37,9 +37,12 @@ The pipeline currently:
 
 ## Product walkthrough
 
-The repository includes an **illustrative demo GIF** so a non-technical user can quickly understand the product flow.
+The README uses a **high-resolution product preview** for sharp rendering on GitHub. A lightweight animated walkthrough is also available under `docs/demo/` for portfolio/demo usage.
 
-![HSE-AI Insight Platform Demo](docs/demo/hse-ai-insight-platform-demo.gif)
+![HSE-AI Insight Platform Overview](docs/demo/hse-ai-insight-platform-overview.png)
+
+Optional animated asset:
+- `docs/demo/hse-ai-insight-platform-demo.gif`
 
 What the walkthrough shows:
 
@@ -49,7 +52,7 @@ What the walkthrough shows:
 4. The worker uses Ollama + Qwen2 to extract entities and classify severity.
 5. The dashboard refreshes with KPIs, tags, and recent incident records.
 
-> Note: this GIF is a visual product walkthrough included for documentation and portfolio purposes. It is not a runtime screen recording.
+> Note: the README image is intentionally static because GitHub renders PNG previews much more sharply than large animated GIFs. The GIF remains included as an optional documentation asset.
 
 ## Why this project exists
 

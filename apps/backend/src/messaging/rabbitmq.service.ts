@@ -1,9 +1,9 @@
 import { Injectable, OnModuleDestroy } from '@nestjs/common';
-import { Channel, Connection, connect } from 'amqplib';
+import { Channel, ChannelModel, connect } from 'amqplib';
 
 @Injectable()
 export class RabbitMqService implements OnModuleDestroy {
-  private connection?: Connection;
+  private connection?: ChannelModel;
   private channel?: Channel;
   private readonly url = process.env.RABBITMQ_URL ?? 'amqp://guest:guest@localhost:5672';
   private readonly queue = process.env.RABBITMQ_QUEUE ?? 'hse.reports';
@@ -13,10 +13,14 @@ export class RabbitMqService implements OnModuleDestroy {
       return this.channel;
     }
 
-    this.connection = await connect(this.url);
-    this.channel = await this.connection.createChannel();
-    await this.channel.assertQueue(this.queue, { durable: true });
-    return this.channel;
+    const connection = await connect(this.url);
+    const channel = await connection.createChannel();
+    await channel.assertQueue(this.queue, { durable: true });
+
+    this.connection = connection;
+    this.channel = channel;
+
+    return channel;
   }
 
   async publish(payload: Record<string, unknown>): Promise<void> {
