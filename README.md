@@ -37,12 +37,9 @@ The pipeline currently:
 
 ## Product walkthrough
 
-The README uses a **high-resolution product preview** for sharp rendering on GitHub. A lightweight animated walkthrough is also available under `docs/demo/` for portfolio/demo usage.
+The README uses a **static high-resolution preview** because GitHub renders PNG images much more sharply than large animated GIFs. This keeps the product walkthrough clear, readable, and professional.
 
 ![HSE-AI Insight Platform Overview](docs/demo/hse-ai-insight-platform-overview.png)
-
-Optional animated asset:
-- `docs/demo/hse-ai-insight-platform-demo.gif`
 
 What the walkthrough shows:
 
@@ -52,7 +49,7 @@ What the walkthrough shows:
 4. The worker uses Ollama + Qwen2 to extract entities and classify severity.
 5. The dashboard refreshes with KPIs, tags, and recent incident records.
 
-> Note: the README image is intentionally static because GitHub renders PNG previews much more sharply than large animated GIFs. The GIF remains included as an optional documentation asset.
+> A static preview is used here intentionally to avoid blurred frames, oversized captions, and poor readability inside the GitHub README.
 
 ## Why this project exists
 

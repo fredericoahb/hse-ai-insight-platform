@@ -13,6 +13,5 @@ export function buildPrompt(reportText: string): string {
     '',
     'Incident report:',
     reportText,
-  ].join('
-');
+  ].join('\n');
 }
