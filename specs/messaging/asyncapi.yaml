@@ -1,0 +1,61 @@
+asyncapi: 2.6.0
+
+info:
+  title: HSE-AI Insight Platform Messaging
+  version: 1.0.0
+  description: >
+    Async message contracts for the HSE-AI Insight Platform.
+    The NestJS backend publishes incident messages to RabbitMQ and the
+    Node.js worker consumes them for AI analysis.
+
+servers:
+  local:
+    url: amqp://guest:guest@localhost:5672
+    protocol: amqp
+    description: Local RabbitMQ broker
+
+channels:
+  hse.reports:
+    description: >
+      Durable queue for incident analysis jobs. The backend publishes one
+      message per submitted report. The worker consumes and processes each
+      message exactly once.
+    subscribe:
+      summary: Worker consumes an incident analysis job
+      operationId: consumeIncidentJob
+      message:
+        $ref: '#/components/messages/IncidentJob'
+    publish:
+      summary: Backend publishes an incident analysis job
+      operationId: publishIncidentJob
+      message:
+        $ref: '#/components/messages/IncidentJob'
+
+components:
+  messages:
+    IncidentJob:
+      name: IncidentJob
+      title: Incident Analysis Job
+      summary: Triggers AI extraction and enrichment for a single incident
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/IncidentJobPayload'
+
+  schemas:
+    IncidentJobPayload:
+      type: object
+      required: [incidentId, reportText]
+      properties:
+        incidentId:
+          type: string
+          format: uuid
+          description: Primary key of the incident row in PostgreSQL
+        reportText:
+          type: string
+          minLength: 20
+          maxLength: 10000
+          description: Original free-text report submitted by the operator
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp of the incident row creation

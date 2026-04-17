@@ -26,13 +26,66 @@ HSE-AI Insight Platform is a full-stack Oil & Gas safety analytics application t
 - **Containers and local orchestration:** Docker, Docker Compose
 - **CI:** GitHub Actions
 
+## Development Methodology
+
+This project follows **Specification-Driven Development (SDD)**.
+
+### What SDD means here
+
+Every feature begins with a formal specification, not with code. Specifications are the single source of truth for contracts between services, and they live in the `specs/` directory alongside the implementation.
+
+```text
+specs/
+├── api/
+│   └── openapi.yaml          ← REST API contract (OpenAPI 3.0)
+├── messaging/
+│   └── asyncapi.yaml         ← RabbitMQ message contract (AsyncAPI 2.6)
+└── ai/
+    └── extraction-schema.json ← AI extraction output schema (JSON Schema draft-07)
+```
+
+### SDD workflow
+
+```text
+1. Write or update the spec  →  specs/api/openapi.yaml (or messaging, ai)
+2. Implement to satisfy it   →  src/ code, DTOs, services
+3. Write spec-driven tests   →  test/*.spec.ts — assertions reference the spec
+4. CI validates everything   →  build + test jobs on every push
+```
+
+### Key contracts
+
+| Contract | File | Validates |
+|---|---|---|
+| REST API | `specs/api/openapi.yaml` | All request/response shapes |
+| RabbitMQ messages | `specs/messaging/asyncapi.yaml` | Queue payload schema |
+| AI extraction output | `specs/ai/extraction-schema.json` | LLM/fallback JSON output |
+
+### Interactive API docs
+
+When the backend is running, the live OpenAPI docs are available at:
+
+```
+http://localhost:3001/api/docs
+```
+
+The Swagger UI is generated directly from the NestJS decorators and stays in sync with the `specs/api/openapi.yaml` contract.
+
+### Adding a new feature
+
+1. Update or add the relevant spec file under `specs/`.
+2. Implement the feature so it satisfies the spec.
+3. Add tests in `apps/backend/test/` that assert the response shape matches the spec.
+4. Run `npm test` from `apps/backend` to verify.
+
 ## Continuous Integration
 
 This repository includes a GitHub Actions workflow at `.github/workflows/ci.yml`.
 
-The pipeline currently:
+The pipeline:
 - installs dependencies for `backend`, `worker`, and `frontend`
 - runs the build step for each app
+- runs spec-driven tests for the backend
 - validates the `docker-compose.yml` file syntax
 
 ## Product walkthrough
@@ -80,17 +133,6 @@ NestJS API ---> RabbitMQ ---> Worker ---> Ollama (Qwen2)
                               OpenSearch
 ```
 
-## Tech stack
-
-- **Frontend:** Next.js + React + TypeScript
-- **Backend API:** NestJS + TypeScript
-- **Worker:** Node.js + TypeScript
-- **Database:** PostgreSQL
-- **Message broker:** RabbitMQ
-- **Search engine:** OpenSearch
-- **LLM runtime:** Ollama with `qwen2:7b`
-- **Container orchestration:** Docker Compose
-
 ## Monorepo structure
 
 ```text
@@ -100,12 +142,20 @@ hse-ai-insight-platform/
 │       └── ci.yml
 ├── apps/
 │   ├── backend/
+│   │   └── test/               ← spec-driven tests
 │   ├── frontend/
 │   └── worker/
 ├── docs/
 │   └── demo/
 ├── infrastructure/
 │   └── postgres/
+├── specs/
+│   ├── api/
+│   │   └── openapi.yaml        ← REST API contract
+│   ├── messaging/
+│   │   └── asyncapi.yaml       ← RabbitMQ message contract
+│   └── ai/
+│       └── extraction-schema.json ← AI extraction output schema
 ├── docker-compose.yml
 ├── .env.example
 ├── Makefile
@@ -146,6 +196,7 @@ docker compose exec ollama ollama pull qwen2:7b
 
 - Frontend: `http://localhost:3000`
 - Backend API: `http://localhost:3001`
+- API docs (Swagger UI): `http://localhost:3001/api/docs`
 - RabbitMQ Management: `http://localhost:15672`
 - OpenSearch: `http://localhost:9200`
 - OpenSearch Dashboards: `http://localhost:5601`
@@ -167,6 +218,8 @@ AI_FALLBACK_ENABLED=false
 ```
 
 ## API endpoints
+
+Full contract: [`specs/api/openapi.yaml`](specs/api/openapi.yaml)
 
 ### Submit a report
 
@@ -205,7 +258,7 @@ GET /api/reports/:id
 
 ## Sample AI schema
 
-The worker asks the model to produce JSON with fields similar to these:
+Defined in [`specs/ai/extraction-schema.json`](specs/ai/extraction-schema.json). The worker asks the model to produce JSON with fields similar to these:
 
 ```json
 {
@@ -219,6 +272,16 @@ The worker asks the model to produce JSON with fields similar to these:
   "tags": ["slip", "maintenance", "housekeeping"]
 }
 ```
+
+## Running tests
+
+```bash
+cd apps/backend
+npm install
+npm test
+```
+
+Tests in `apps/backend/test/` are spec-driven: each test file references the spec it validates and asserts that responses conform to the shapes defined in `specs/api/openapi.yaml`.
 
 ## Frontend design notes
 
@@ -247,6 +310,8 @@ You still need PostgreSQL, RabbitMQ, OpenSearch, and Ollama available locally.
 - Add WebSocket or Server-Sent Events for real-time UI updates.
 - Add Prometheus and Grafana for observability.
 - Add incident recommendation workflows and corrective action tracking.
+- Add contract testing with Pact to validate the RabbitMQ AsyncAPI contract at runtime.
+- Add OpenAPI response validation middleware to enforce the spec at the HTTP boundary.
 
 ## Notes on compatibility
 

@@ -41,6 +41,28 @@ jobs:
       - name: Build application
         run: npm run build
 
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/backend
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/backend/package.json
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run spec-driven tests
+        run: npm test
+
   validate-docker-compose:
     runs-on: ubuntu-latest
     steps:

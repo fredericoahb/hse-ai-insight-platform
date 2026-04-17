@@ -1,0 +1,310 @@
+openapi: 3.0.3
+
+info:
+  title: HSE-AI Insight Platform API
+  description: >
+    REST API for the HSE-AI Insight Platform. Accepts free-text HSE incident
+    reports, queues them for asynchronous AI analysis, and exposes structured
+    incident data and dashboard aggregations.
+  version: 1.0.0
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:3001/api
+    description: Local development
+
+tags:
+  - name: reports
+    description: Incident report ingestion and retrieval
+  - name: dashboard
+    description: Aggregated KPIs and trend analytics
+
+paths:
+  /reports:
+    post:
+      tags: [reports]
+      summary: Submit a free-text incident report
+      description: >
+        Persists the report with status QUEUED and publishes a message to
+        RabbitMQ for asynchronous AI extraction. Returns immediately.
+      operationId: createReport
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReportRequest'
+            example:
+              reportText: >
+                Worker observed gas detector alarm near compressor station C2
+                after valve inspection. No injury, area isolated, likely loose fitting.
+      responses:
+        '201':
+          description: Report accepted and queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateReportResponse'
+        '400':
+          description: Validation error (reportText missing, too short, or too long)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+
+  /reports/recent:
+    get:
+      tags: [reports]
+      summary: List the most recent incidents
+      operationId: getRecentReports
+      parameters:
+        - name: limit
+          in: query
+          description: Number of incidents to return (1–50, default 10)
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 10
+      responses:
+        '200':
+          description: Array of recent incidents ordered by creation date descending
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Incident'
+
+  /reports/{id}:
+    get:
+      tags: [reports]
+      summary: Fetch a single incident by ID
+      operationId: getReportById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: UUID of the incident
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Incident found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Incident'
+        '404':
+          description: Incident not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+
+  /dashboard/summary:
+    get:
+      tags: [dashboard]
+      summary: Fetch aggregated KPI summary
+      operationId: getDashboardSummary
+      responses:
+        '200':
+          description: KPI snapshot across all incidents
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardSummary'
+
+  /dashboard/trends:
+    get:
+      tags: [dashboard]
+      summary: Fetch incident trends and severity breakdown
+      operationId: getDashboardTrends
+      parameters:
+        - name: days
+          in: query
+          description: Lookback window in days (7–90, default 14)
+          required: false
+          schema:
+            type: integer
+            minimum: 7
+            maximum: 90
+            default: 14
+      responses:
+        '200':
+          description: Daily incident counts and severity distribution
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardTrends'
+
+components:
+  schemas:
+    CreateReportRequest:
+      type: object
+      required: [reportText]
+      properties:
+        reportText:
+          type: string
+          minLength: 20
+          maxLength: 10000
+          description: Free-text narrative of the HSE incident or observation
+
+    CreateReportResponse:
+      type: object
+      required: [message, incidentId, status, createdAt]
+      properties:
+        message:
+          type: string
+          example: Report received and queued for analysis.
+        incidentId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [QUEUED]
+        createdAt:
+          type: string
+          format: date-time
+
+    Incident:
+      type: object
+      required: [id, reportText, status, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        reportText:
+          type: string
+        status:
+          type: string
+          enum: [QUEUED, PROCESSING, PROCESSED, FAILED]
+        classification:
+          type: string
+          nullable: true
+          enum: [Serious Incident, Minor Accident, Near Miss, Preventive Observation]
+        severity:
+          type: string
+          nullable: true
+          enum: [High, Medium, Low]
+        equipment:
+          type: string
+          nullable: true
+        location:
+          type: string
+          nullable: true
+        injuryType:
+          type: string
+          nullable: true
+        probableRootCause:
+          type: string
+          nullable: true
+        aiSummary:
+          type: string
+          nullable: true
+        tags:
+          type: array
+          items:
+            type: string
+        extractedEntities:
+          type: object
+          additionalProperties: true
+        analyzedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        lastError:
+          type: string
+          nullable: true
+
+    DashboardSummary:
+      type: object
+      required: [totalIncidents, processedReports, highSeverityIncidents, daysSinceLastAccident]
+      properties:
+        totalIncidents:
+          type: integer
+          minimum: 0
+        processedReports:
+          type: integer
+          minimum: 0
+        highSeverityIncidents:
+          type: integer
+          minimum: 0
+        daysSinceLastAccident:
+          type: integer
+          minimum: 0
+
+    DashboardTrends:
+      type: object
+      required: [days, incidentsByDay, severityBreakdown]
+      properties:
+        days:
+          type: integer
+          minimum: 7
+          maximum: 90
+        incidentsByDay:
+          type: array
+          items:
+            $ref: '#/components/schemas/TrendPoint'
+        severityBreakdown:
+          type: array
+          items:
+            $ref: '#/components/schemas/SeverityPoint'
+
+    TrendPoint:
+      type: object
+      required: [date, incidents]
+      properties:
+        date:
+          type: string
+          format: date
+        incidents:
+          type: integer
+          minimum: 0
+
+    SeverityPoint:
+      type: object
+      required: [severity, total]
+      properties:
+        severity:
+          type: string
+          enum: [High, Medium, Low, Unclassified]
+        total:
+          type: integer
+          minimum: 0
+
+    ValidationError:
+      type: object
+      properties:
+        statusCode:
+          type: integer
+          example: 400
+        message:
+          type: array
+          items:
+            type: string
+        error:
+          type: string
+          example: Bad Request
+
+    NotFoundError:
+      type: object
+      properties:
+        statusCode:
+          type: integer
+          example: 404
+        message:
+          type: string
+          example: Incident not found
+        error:
+          type: string
+          example: Not Found
